@@ -1,9 +1,13 @@
 import sys
+import os
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QScrollArea, QSizePolicy
 from PySide6.QtCore import Qt
-import modulos.ia_handler as ia_handler
+import tensorflow as tf
+from transformers import BertTokenizer
+ruta_carpeta = os.path.abspath(os.path.join(os.getcwd(), os.pardir, 'modulos'))
+sys.path.append(ruta_carpeta)
 class ChatBubble(QLabel):
-    def __init__(self, message, is_sent_by_user):
+     def __init__(self, message, is_sent_by_user):
         super().__init__()
         self.setText(message)
         self.setWordWrap(True)
@@ -20,7 +24,9 @@ class ChatBubble(QLabel):
 class ChatWindow(QWidget):
     def __init__(self):
         super().__init__()
+        self.cargar_modelo()
         self.initUI()
+
 
     def initUI(self):
         self.setWindowTitle('Ventana de Chat')
@@ -57,6 +63,7 @@ class ChatWindow(QWidget):
         if message:
             self.add_message(message, is_sent_by_user=True)
             self.message_input.clear()
+            self.predecir(message)
 
     def add_message(self, message, is_sent_by_user):
         bubble = ChatBubble(message, is_sent_by_user)
@@ -69,13 +76,31 @@ class ChatWindow(QWidget):
         self.add_message(message, is_sent_by_user=False)
 
     def cargar_modelo(self):
-        self.ia_handler.cargar_modelo()
-        self.receive_message('Modelo cargado correctamente')
+        ruta_modelo = "model\model"
+        self.modelo = tf.saved_model.load(ruta_modelo)
+        self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
-    def hacer_prediccion(self):
-        datos_entrada = self.datos_input.text()
-        prediccion = ia_handler.predecir(datos_entrada)
+        return 
+    def predecir(self, texto):
+        tokens = self.tokenizer(texto, return_tensors='tf')
+        input_ids = tokens['input_ids']
+        attention_mask = tokens['attention_mask']
+        token_type_ids = tokens.get('token_type_ids')
+
+        funcion_prediccion = self.modelo.signatures['serving_default']
+        prediccion = funcion_prediccion(input_ids=input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
+        logits = prediccion['logits']
+        probabilidades = tf.nn.softmax(logits, axis=-1)
+        
+        # Obtener el índice de la categoría con mayor probabilidad
+        categoria_mayor_probabilidad = tf.argmax(probabilidades, axis=-1).numpy()
+        
+        # Asumiendo que tienes una lista de nombres de categorías
+        nombres_categorias = ["Categoría 1", "Categoría 2", "Categoría 3"]  # Ajusta esta lista según tu modelo
+        categoria = nombres_categorias[categoria_mayor_probabilidad[0]]
+        print (probabilidades)
+        self.receive_message(f'La categoría con mayor probabilidad es: {categoria} ({probabilidades[0][categoria_mayor_probabilidad[0]]:.2f}%)')
         self.receive_message(f'Predicción: {prediccion}')
-window = ChatWindow()
-window.show()
+
+
 

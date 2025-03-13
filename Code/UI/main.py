@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow,
 QPushButton, QLabel, QVBoxLayout, QWidget, QLineEdit)
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QIODevice
-import UI.chat
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
